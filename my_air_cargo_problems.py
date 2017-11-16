@@ -55,12 +55,19 @@ class AirCargoProblem(Problem):
         # forward search and Planning Graphs must use Propositional Logic
 
         def load_actions():
-            """Create all concrete Load actions and return a list
-
-            :return: list of Action objects
-            """
             loads = []
-            # TODO create all load ground actions from the domain Load action
+            for port in self.airports:
+                for cargo in self.cargos:
+                    for plain in self.planes:
+                        precond_pos = [expr("At({plain}, {port})".format(plain=plain, port=port)),
+                                       expr("At({cargo}, {port})".format(cargo=cargo, port=port))]
+                        precond_neg = []
+                        effect_rem = [expr("At({cargo}, {port})".format(cargo=cargo, port=port))]
+                        effect_add = [expr("In({cargo}, {plain})".format(cargo=cargo, plain=plain))]
+                        loads.append(Action(
+                            expr("Load({cargo}, {plain}, {airport})".format(cargo=cargo, plain=plain, airport=port)),
+                            [precond_pos, precond_neg], [effect_add, effect_rem]))
+
             return loads
 
         def unload_actions():
@@ -69,7 +76,17 @@ class AirCargoProblem(Problem):
             :return: list of Action objects
             """
             unloads = []
-            # TODO create all Unload ground actions from the domain Unload action
+            for port in self.airports:
+                for cargo in self.cargos:
+                    for plain in self.planes:
+                        precond_pos = [expr("At({plain}, {port})".format(plain=plain, port=port)),
+                                       expr("In({cargo}, {plain})".format(cargo=cargo, plain=plain))]
+                        precond_neg = []
+                        effect_add = [expr("At({cargo}, {port})".format(cargo=cargo, port=port))]
+                        effect_rem = [expr("In({cargo}, {plain})".format(cargo=cargo, plain=plain))]
+                        unloads.append(Action(
+                            expr("Unload({cargo}, {plain}, {airport})".format(cargo=cargo, plain=plain, airport=port)),
+                            [precond_pos, precond_neg], [effect_add, effect_rem]))
             return unloads
 
         def fly_actions():
@@ -105,6 +122,26 @@ class AirCargoProblem(Problem):
         """
         # TODO implement
         possible_actions = []
+
+        for action in self.actions_list:
+            ok = True
+            for precond in action.precond_pos:
+                ind = self.state_map.index(precond)
+                if state[ind] != 'T':
+                    ok = False
+                    continue
+            if ok == False:
+                continue
+            for precond in action.precond_neg:
+                ind = self.state_map.index(precond)
+                if state[ind] != 'F':
+                    ok = False
+                    continue
+            if ok == True:
+                possible_actions.append(action)
+
+        # for action in self.actions_list:
+
         return possible_actions
 
     def result(self, state: str, action: Action):
@@ -117,7 +154,25 @@ class AirCargoProblem(Problem):
         :return: resulting state after action
         """
         # TODO implement
-        new_state = FluentState([], [])
+        new_state_pos = []
+        new_state_neg = []
+
+        for (ind, s) in enumerate(self.state_map):
+            if state[ind] == 'F':
+                if s not in action.effect_add:
+                    new_state_neg.append(s)
+            if state[ind] == 'T':
+                if s not in action.effect_rem:
+                    new_state_pos.append(s)
+
+        for p in action.effect_add:
+            new_state_pos.append(p)
+
+        for n in action.effect_rem:
+            new_state_neg.append(n)
+
+        new_state = FluentState(new_state_pos, new_state_neg)
+        self.state_map = new_state.pos + new_state.neg
         return encode_state(new_state, self.state_map)
 
     def goal_test(self, state: str) -> bool:
