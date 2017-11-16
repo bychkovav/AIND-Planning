@@ -212,8 +212,14 @@ class AirCargoProblem(Problem):
         conditions by ignoring the preconditions required for an action to be
         executed.
         """
-        # TODO implement (see Russell-Norvig Ed-3 10.2.3  or Russell-Norvig Ed-2 11.2)
+        kb = PropKB()
+
+        kb.tell(decode_state(node.state, self.state_map).pos_sentence())
         count = 0
+
+        for clause in self.goal:
+            if clause not in kb.clauses:
+                count += 1
         return count
 
 
@@ -244,7 +250,55 @@ def air_cargo_p1() -> AirCargoProblem:
 
 def air_cargo_p2() -> AirCargoProblem:
     # TODO implement Problem 2 definition
-    pass
+    cargos = ['C1', 'C2', 'C3']
+    planes = ['P1', 'P2', 'P3']
+    airports = ['JFK', 'SFO', 'ATL']
+    pos = [expr('At(C1, SFO)'),
+           expr('At(C2, JFK)'),
+           expr('At(C3, ATL)'),
+           expr('At(P1, SFO)'),
+           expr('At(P2, JFK)'),
+           expr('At(P3, ATL)'),
+           ]
+
+    neg = [expr('At(C2, SFO)'),
+           expr('At(C2, ATL)'),
+           expr('At(C1, JFK)'),
+           expr('At(C1, ATL)'),
+           expr('At(C3, SFO)'),
+           expr('At(C3, JFK)'),
+
+
+           expr('In(C2, P1)'),
+           expr('In(C2, P2)'),
+           expr('In(C2, P3)'),
+
+           expr('In(C1, P1)'),
+           expr('In(C1, P2)'),
+           expr('In(C1, P3)'),
+
+           expr('In(C3, P1)'),
+           expr('In(C3, P2)'),
+           expr('In(C3, P3)'),
+
+           expr('At(P1, JFK)'),
+           expr('At(P1, ATL)'),
+
+           expr('At(P2, SFO)'),
+           expr('At(P2, ATL)'),
+
+           expr('At(P3, SFO)'),
+           expr('At(P3, JFK)'),
+           ]
+
+    init = FluentState(pos, neg)
+
+    goal = [expr('At(C1, JFK)'),
+            expr('At(C2, SFO)'),
+            expr('At(C3, SFO)'),
+            ]
+
+    return AirCargoProblem(cargos, planes, airports, init, goal)
 
 
 def air_cargo_p3() -> AirCargoProblem:
