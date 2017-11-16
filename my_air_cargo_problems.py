@@ -172,7 +172,7 @@ class AirCargoProblem(Problem):
             new_state_neg.append(n)
 
         new_state = FluentState(new_state_pos, new_state_neg)
-        self.state_map = new_state.pos + new_state.neg
+
         return encode_state(new_state, self.state_map)
 
     def goal_test(self, state: str) -> bool:
