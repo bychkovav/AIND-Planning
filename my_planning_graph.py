@@ -105,7 +105,6 @@ class PgNode_s(PgNode):
 class PgNode_a(PgNode):
     """A-type (action) Planning Graph node - inherited from PgNode """
 
-
     def __init__(self, action: Action):
         """A-level Planning Graph node constructor
 
@@ -303,6 +302,18 @@ class PlanningGraph():
         :return:
             adds A nodes to the current level in self.a_levels[level]
         """
+        res = set()
+
+        states_set = self.s_levels[level - 1]
+
+        for a in self.all_actions:
+            action_set = set(a.precond_pos)
+            if action_set.issubset(states_set):
+                res.add(PgNode_a(a))
+
+        self.a_levels.append(res)
+
+
         # TODO add action A level to the planning graph as described in the Russell-Norvig text
         # 1. determine what actions to add and create those PgNode_a objects
         # 2. connect the nodes to the previous S literal level
@@ -312,8 +323,18 @@ class PlanningGraph():
         #   action node is added, it MUST be connected to the S node instances in the appropriate s_level set.
 
     def add_literal_level(self, level):
-        """ add an S (literal) level to the Planning Graph
+        res = set()
 
+        for a in self.a_levels[level - 1]:
+            for e in a.effect_add:
+                res.add(PgNode_s(e, True))
+            for e in a.effect_rem:
+                res.add(PgNode_s(e, False))
+
+        self.s_levels[level] = res
+        """ add an S (literal) level to the Planning Graph
+        
+        
         :param level: int
             the level number alternates S0, A0, S1, A1, S2, .... etc the level number is also used as the
             index for the node set lists self.a_levels[] and self.s_levels[]
@@ -385,6 +406,14 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
+        for ef in node_a1.effect_add:
+            if ef in node_a2.effect_rem:
+                return True
+
+        for ef in node_a2.effect_add:
+            if ef in node_a1.effect_rem:
+                return True
+
         # TODO test for Inconsistent Effects between nodes
         return False
 
@@ -402,6 +431,22 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
+        for ef in node_a1.precond_pos:
+            if ef in node_a2.effect_rem:
+                return True
+
+        for ef in node_a2.precond_pos:
+            if ef in node_a1.effect_rem:
+                return True
+
+        for ef in node_a1.precond_neg:
+            if ef in node_a2.effect_add:
+                return True
+
+        for ef in node_a2.precond_neg:
+            if ef in node_a1.effect_add:
+                return True
+
         # TODO test for Interference between nodes
         return False
 
@@ -415,7 +460,13 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
+        for ef in node_a1.precond_pos:
+            if ef in node_a2.precond_neg:
+                return True
 
+        for ef in node_a2.precond_pos:
+            if ef in node_a1.precond_neg:
+                return True
         # TODO test for Competing Needs between nodes
         return False
 
@@ -447,10 +498,16 @@ class PlanningGraph():
         literal expression nodes, and the class tracks whether the literal is
         positive or negative.
 
+
         :param node_s1: PgNode_s
         :param node_s2: PgNode_s
         :return: bool
         """
+
+        if node_s1.__eq__(node_s2):
+            if (node_s1.is_pos == True and node_s2.is_pos == False) or (
+                            node_s1.is_pos == False and node_s2.is_pos == True):
+                return True
         # TODO test for negation between nodes
         return False
 
@@ -470,15 +527,47 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
+
+        s_lvl = self.s_levels.index(node_s1)
+        prev_actions = self.a_levels[s_lvl - 1]
+
+        actions_s1 = [i for i in prev_actions if (node_s1.is_pos and node_s1.symbol in i.effect_add) or (
+            node_s1.is_pos and node_s1.symbol in i.effect_rem)]
+        actions_s2 = [i for i in prev_actions if (node_s2.is_pos and node_s2.symbol in i.effect_add) or (
+            node_s2.is_pos and node_s2.symbol in i.effect_rem)]
+
+        m = False
+        for a in actions_s1:
+            m = False
+            for a1 in actions_s2:
+                if a1.is_mutex(a):
+                    m = True
+                    break
+
+            if m == False:
+                break
+
         # TODO test for Inconsistent Support between nodes
-        return False
+        return m
 
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
-
         :return: int
         """
+
         level_sum = 0
         # TODO implement
         # for each goal in the problem, determine the level cost, then add them together
+        for i in self.problem.goal:
+            found = False
+            for (index, lvl) in enumerate(self.s_levels):
+                for s in lvl:
+                    if i == s.symbol:
+                        level_sum += index
+                        found = True
+                        break
+
+            if found == True:
+                break
+
         return level_sum
