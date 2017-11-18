@@ -326,12 +326,12 @@ class PlanningGraph():
         res = set()
 
         for a in self.a_levels[level - 1]:
-            for e in a.effect_add:
+            for e in a.action.effect_add:
                 res.add(PgNode_s(e, True))
-            for e in a.effect_rem:
+            for e in a.action.effect_rem:
                 res.add(PgNode_s(e, False))
 
-        self.s_levels[level] = res
+        self.s_levels.append(res)
         """ add an S (literal) level to the Planning Graph
         
         
@@ -406,12 +406,12 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        for ef in node_a1.effect_add:
-            if ef in node_a2.effect_rem:
+        for ef in node_a1.action.effect_add:
+            if ef in node_a2.action.effect_rem:
                 return True
 
-        for ef in node_a2.effect_add:
-            if ef in node_a1.effect_rem:
+        for ef in node_a2.action.effect_add:
+            if ef in node_a1.action.effect_rem:
                 return True
 
         # TODO test for Inconsistent Effects between nodes
@@ -431,20 +431,20 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        for ef in node_a1.precond_pos:
-            if ef in node_a2.effect_rem:
+        for ef in node_a1.action.precond_pos:
+            if ef in node_a2.action.effect_rem:
                 return True
 
-        for ef in node_a2.precond_pos:
-            if ef in node_a1.effect_rem:
+        for ef in node_a2.action.precond_pos:
+            if ef in node_a1.action.effect_rem:
                 return True
 
-        for ef in node_a1.precond_neg:
-            if ef in node_a2.effect_add:
+        for ef in node_a1.action.precond_neg:
+            if ef in node_a2.action.effect_add:
                 return True
 
-        for ef in node_a2.precond_neg:
-            if ef in node_a1.effect_add:
+        for ef in node_a2.action.precond_neg:
+            if ef in node_a1.action.effect_add:
                 return True
 
         # TODO test for Interference between nodes
@@ -460,12 +460,12 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        for ef in node_a1.precond_pos:
-            if ef in node_a2.precond_neg:
+        for ef in node_a1.action.precond_pos:
+            if ef in node_a2.action.precond_neg:
                 return True
 
-        for ef in node_a2.precond_pos:
-            if ef in node_a1.precond_neg:
+        for ef in node_a2.action.precond_pos:
+            if ef in node_a1.action.precond_neg:
                 return True
         # TODO test for Competing Needs between nodes
         return False
@@ -527,14 +527,21 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
+        s_lvl = -1
+        for (i,l) in enumerate(self.s_levels):
+            if node_s1 in l:
+                s_lvl = i
+                break
 
-        s_lvl = self.s_levels.index(node_s1)
+        if s_lvl == -1:
+            pass
+
         prev_actions = self.a_levels[s_lvl - 1]
 
-        actions_s1 = [i for i in prev_actions if (node_s1.is_pos and node_s1.symbol in i.effect_add) or (
-            node_s1.is_pos and node_s1.symbol in i.effect_rem)]
-        actions_s2 = [i for i in prev_actions if (node_s2.is_pos and node_s2.symbol in i.effect_add) or (
-            node_s2.is_pos and node_s2.symbol in i.effect_rem)]
+        actions_s1 = [i for i in prev_actions if (node_s1.is_pos and node_s1.symbol in i.action.effect_add) or (
+            node_s1.is_pos and node_s1.symbol in i.action.effect_rem)]
+        actions_s2 = [i for i in prev_actions if (node_s2.is_pos and node_s2.symbol in i.action.effect_add) or (
+            node_s2.is_pos and node_s2.symbol in i.action.effect_rem)]
 
         m = False
         for a in actions_s1:
