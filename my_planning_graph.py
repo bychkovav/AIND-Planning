@@ -304,11 +304,13 @@ class PlanningGraph():
         """
         res = set()
 
-        states_set = self.s_levels[level - 1]
+        states_set_pos = [i.symbol for i in self.s_levels[level] if i.is_pos == True]
+        states_set_neg = [i.symbol for i in self.s_levels[level] if i.is_pos == False]
 
         for a in self.all_actions:
-            action_set = set(a.precond_pos)
-            if action_set.issubset(states_set):
+            if not set(a.precond_pos).issubset(states_set_pos):
+                continue
+            if set(a.precond_neg).issubset(states_set_neg):
                 res.add(PgNode_a(a))
 
         self.a_levels.append(res)
@@ -460,14 +462,11 @@ class PlanningGraph():
         :param node_a2: PgNode_a
         :return: bool
         """
-        for ef in node_a1.action.precond_pos:
-            if ef in node_a2.action.precond_neg:
-                return True
+        for p1 in node_a1.parents:
+            for p2 in node_a2.parents:
+                if p1.is_mutex(p2):
+                    return True
 
-        for ef in node_a2.action.precond_pos:
-            if ef in node_a1.action.precond_neg:
-                return True
-        # TODO test for Competing Needs between nodes
         return False
 
     def update_s_mutex(self, nodeset: set):
@@ -504,10 +503,8 @@ class PlanningGraph():
         :return: bool
         """
 
-        if node_s1.__eq__(node_s2):
-            if (node_s1.is_pos == True and node_s2.is_pos == False) or (
-                            node_s1.is_pos == False and node_s2.is_pos == True):
-                return True
+        if node_s1.symbol == node_s2.symbol and node_s1.is_pos != node_s2.is_pos:
+            return True
         # TODO test for negation between nodes
         return False
 
@@ -527,35 +524,17 @@ class PlanningGraph():
         :param node_s2: PgNode_s
         :return: bool
         """
-        s_lvl = -1
-        for (i,l) in enumerate(self.s_levels):
-            if node_s1 in l:
-                s_lvl = i
-                break
 
-        if s_lvl == -1:
-            pass
+        actions_s1 = node_s1.parents
+        actions_s2 = node_s2.parents
 
-        prev_actions = self.a_levels[s_lvl - 1]
-
-        actions_s1 = [i for i in prev_actions if (node_s1.is_pos and node_s1.symbol in i.action.effect_add) or (
-            node_s1.is_pos and node_s1.symbol in i.action.effect_rem)]
-        actions_s2 = [i for i in prev_actions if (node_s2.is_pos and node_s2.symbol in i.action.effect_add) or (
-            node_s2.is_pos and node_s2.symbol in i.action.effect_rem)]
-
-        m = False
-        for a in actions_s1:
-            m = False
-            for a1 in actions_s2:
-                if a1.is_mutex(a):
-                    m = True
-                    break
-
-            if m == False:
-                break
+        for a1 in actions_s1:
+            for a2 in actions_s2:
+                if not a1.is_mutex(a2):
+                    return False
 
         # TODO test for Inconsistent Support between nodes
-        return m
+        return True
 
     def h_levelsum(self) -> int:
         """The sum of the level costs of the individual goals (admissible if goals independent)
@@ -563,18 +542,13 @@ class PlanningGraph():
         """
 
         level_sum = 0
+        goals = [PgNode_s(g, True) for g in self.problem.goal]
         # TODO implement
         # for each goal in the problem, determine the level cost, then add them together
-        for i in self.problem.goal:
-            found = False
+        for i in goals:
             for (index, lvl) in enumerate(self.s_levels):
-                for s in lvl:
-                    if i == s.symbol:
-                        level_sum += index
-                        found = True
-                        break
-
-            if found == True:
-                break
+                if i in lvl:
+                    level_sum += index
+                    break
 
         return level_sum
